@@ -211,13 +211,13 @@ export function renderPage(images: string[], lastRead: string | null, folderName
         return;
       }
 
-      if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft" || event.key === "k") {
         event.preventDefault();
         goPrev();
         return;
       }
 
-      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      if (event.key === "ArrowDown" || event.key === "ArrowRight" || event.key === "j") {
         event.preventDefault();
         goNext();
         return;

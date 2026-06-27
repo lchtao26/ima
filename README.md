@@ -23,10 +23,13 @@ Press **Ctrl+C** in the terminal to stop the server.
 
 ## Viewer
 
-- Click a filename to open fullscreen
-- **Esc** to close
-- **↑ / ↓ / ← / →**, **Space** (next), **Shift+Space** (previous) to navigate
-- Last-read file is pinned at the top (saved in `~/.ima/state.json`)
+Click a filename to open fullscreen. Last-read file is pinned at the top (saved in `~/.ima/state.json`).
+
+| Key | Action |
+| --- | --- |
+| `j` `↓` `→` `Space` | Next |
+| `k` `↑` `←` `Shift+Space` | Previous |
+| `Esc` | Close |
 
 ## Development
 

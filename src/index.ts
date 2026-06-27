@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import open from "open";
 import { findFreePort, startServer } from "./server.js";
 import { scanImages } from "./scan.js";
+import { resolveLastRead } from "./state.js";
 
 async function main(): Promise<void> {
   const targetPath = resolve(process.argv[2] ?? ".");
@@ -29,8 +30,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const lastRead = resolveLastRead(targetPath, images);
+
   const port = await findFreePort();
-  startServer(targetPath, images, port);
+  startServer(targetPath, images, port, lastRead);
 
   const url = `http://127.0.0.1:${port}`;
   console.log(`Serving ${images.length} image${images.length === 1 ? "" : "s"} at ${url}`);

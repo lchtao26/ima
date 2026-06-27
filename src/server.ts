@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import net from "node:net";
 import { resolveImagePath } from "./scan.js";
 import { renderPage } from "./page.js";
+import { setLastRead } from "./state.js";
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -43,9 +44,10 @@ export function startServer(
   dirPath: string,
   images: string[],
   port: number,
+  lastRead: string | null,
 ): ReturnType<typeof createServer> {
   const server = createServer((req, res) => {
-    handleRequest(req, res, dirPath, images).catch(() => {
+    handleRequest(req, res, dirPath, images, lastRead).catch(() => {
       if (!res.headersSent) {
         res.writeHead(500);
         res.end("Internal Server Error");
@@ -62,12 +64,37 @@ async function handleRequest(
   res: ServerResponse,
   dirPath: string,
   images: string[],
+  lastRead: string | null,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
   if (url.pathname === "/") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderPage(images));
+    res.end(renderPage(images, lastRead));
+    return;
+  }
+
+  if (url.pathname === "/api/last-read" && req.method === "POST") {
+    const body = await readBody(req);
+    let filename: string;
+
+    try {
+      filename = (JSON.parse(body) as { filename: string }).filename;
+    } catch {
+      res.writeHead(400);
+      res.end("Bad Request");
+      return;
+    }
+
+    if (!images.includes(filename)) {
+      res.writeHead(400);
+      res.end("Bad Request");
+      return;
+    }
+
+    setLastRead(dirPath, filename);
+    res.writeHead(204);
+    res.end();
     return;
   }
 
@@ -89,4 +116,12 @@ async function handleRequest(
 
   res.writeHead(404);
   res.end("Not Found");
+}
+
+async function readBody(req: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }

@@ -1,5 +1,6 @@
-export function renderPage(images: string[]): string {
+export function renderPage(images: string[], lastRead: string | null): string {
   const imageJson = JSON.stringify(images);
+  const lastReadJson = JSON.stringify(lastRead);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -55,6 +56,22 @@ export function renderPage(images: string[]): string {
       outline: none;
     }
 
+    li.pinned button {
+      background: #1a2332;
+      border-bottom-color: #243044;
+    }
+
+    li.pinned button:hover,
+    li.pinned button:focus-visible {
+      background: #1f2a3d;
+    }
+
+    li.pinned .tag {
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      color: #7aa2d6;
+    }
+
     #viewer {
       display: none;
       position: fixed;
@@ -89,12 +106,15 @@ export function renderPage(images: string[]): string {
 
   <script>
     const images = ${imageJson};
+    const lastRead = ${lastReadJson};
     const list = document.getElementById("list");
     const viewer = document.getElementById("viewer");
     const preview = document.getElementById("preview");
     let currentIndex = -1;
+    let pinnedLastRead = lastRead;
+    let pinnedLi = null;
 
-    images.forEach((name, index) => {
+    function addListItem(name, index) {
       const li = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
@@ -102,7 +122,52 @@ export function renderPage(images: string[]): string {
       button.addEventListener("click", () => openViewer(index));
       li.appendChild(button);
       list.appendChild(li);
+    }
+
+    function updatePinnedRow(name) {
+      if (name === pinnedLastRead && pinnedLi) {
+        return;
+      }
+
+      pinnedLastRead = name;
+      const index = images.indexOf(name);
+      if (index === -1) {
+        return;
+      }
+
+      if (!pinnedLi) {
+        pinnedLi = document.createElement("li");
+        pinnedLi.className = "pinned";
+        list.insertBefore(pinnedLi, list.firstChild);
+      }
+
+      pinnedLi.replaceChildren();
+      const button = document.createElement("button");
+      button.type = "button";
+      button.append(document.createTextNode(name + " "));
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = "last read";
+      button.append(tag);
+      button.addEventListener("click", () => openViewer(index));
+      pinnedLi.append(button);
+    }
+
+    images.forEach((name, index) => {
+      addListItem(name, index);
     });
+
+    if (lastRead) {
+      updatePinnedRow(lastRead);
+    }
+
+    function saveLastRead(name) {
+      fetch("/api/last-read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: name }),
+      });
+    }
 
     function openViewer(index) {
       currentIndex = index;
@@ -121,6 +186,8 @@ export function renderPage(images: string[]): string {
       const name = images[currentIndex];
       preview.src = "/image/" + encodeURIComponent(name);
       preview.alt = name;
+      updatePinnedRow(name);
+      saveLastRead(name);
     }
 
     function goPrev() {

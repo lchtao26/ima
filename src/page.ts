@@ -1,13 +1,14 @@
-export function renderPage(images: string[], lastRead: string | null): string {
+export function renderPage(images: string[], lastRead: string | null, folderName: string): string {
   const imageJson = JSON.stringify(images);
   const lastReadJson = JSON.stringify(lastRead);
+  const title = `ima — ${escapeHtml(folderName)}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ima</title>
+  <title>${title}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -234,4 +235,12 @@ export function renderPage(images: string[], lastRead: string | null): string {
   </script>
 </body>
 </html>`;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

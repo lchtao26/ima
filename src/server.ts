@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { extname } from "node:path";
+import { extname, basename } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import net from "node:net";
 import { resolveImagePath } from "./scan.js";
@@ -70,7 +70,7 @@ async function handleRequest(
 
   if (url.pathname === "/") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderPage(images, lastRead));
+    res.end(renderPage(images, lastRead, basename(dirPath)));
     return;
   }
 

@@ -1,0 +1,26 @@
+{
+  "name": "ima",
+  "version": "0.1.0",
+  "description": "Local image gallery CLI — serve and browse images in a directory",
+  "type": "module",
+  "bin": {
+    "ima": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": ["cli", "images", "gallery"],
+  "license": "MIT",
+  "dependencies": {
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

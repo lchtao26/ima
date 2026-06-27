@@ -219,6 +219,16 @@ export function renderPage(images: string[], lastRead: string | null): string {
       if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         event.preventDefault();
         goNext();
+        return;
+      }
+
+      if (event.key === " ") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          goPrev();
+        } else {
+          goNext();
+        }
       }
     });
   </script>

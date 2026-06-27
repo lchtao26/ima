@@ -20,7 +20,29 @@ export function scanImages(dirPath: string): string[] {
     .map((entry) => entry.name)
     .filter((name) => !name.startsWith("."))
     .filter((name) => IMAGE_EXTENSIONS.has(getExtension(name)))
-    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    .sort(compareImageNames);
+}
+
+export function compareImageNames(a: string, b: string): number {
+  const baseA = stripExtension(a);
+  const baseB = stripExtension(b);
+  const baseCompare = baseA.localeCompare(baseB, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+  if (baseCompare !== 0) {
+    return baseCompare;
+  }
+
+  return getExtension(a).localeCompare(getExtension(b), undefined, {
+    sensitivity: "base",
+  });
+}
+
+function stripExtension(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  return dot === -1 ? filename : filename.slice(0, dot);
 }
 
 function getExtension(filename: string): string {

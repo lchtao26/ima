@@ -68,7 +68,7 @@ async function handleRequest(
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
-  if (url.pathname === "/") {
+  if (url.pathname === "/" || url.pathname.startsWith("/view/")) {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderPage(images, lastRead, basename(dirPath)));
     return;

@@ -20,6 +20,10 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       min-height: 100vh;
     }
 
+    [hidden] {
+      display: none !important;
+    }
+
     header {
       padding: 1.25rem 1.5rem;
       border-bottom: 1px solid #2a2a2a;
@@ -73,22 +77,15 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       color: #7aa2d6;
     }
 
-    #viewer {
-      display: none;
-      position: fixed;
-      inset: 0;
+    #viewer-page {
+      min-height: 100vh;
       background: #000;
-      z-index: 10;
-      flex-direction: column;
+      display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    #viewer.open {
-      display: flex;
-    }
-
-    #viewer img {
+    #viewer-page img {
       max-width: 100vw;
       max-height: 100vh;
       object-fit: contain;
@@ -96,31 +93,46 @@ export function renderPage(images: string[], lastRead: string | null, folderName
   </style>
 </head>
 <body>
-  <header>
-    <h1>${images.length} image${images.length === 1 ? "" : "s"}</h1>
-  </header>
-  <ul id="list"></ul>
+  <div id="list-page">
+    <header>
+      <h1>${images.length} image${images.length === 1 ? "" : "s"}</h1>
+    </header>
+    <ul id="list"></ul>
+  </div>
 
-  <div id="viewer" aria-hidden="true">
+  <div id="viewer-page" hidden>
     <img id="preview" alt="">
   </div>
 
   <script>
     const images = ${imageJson};
     const lastRead = ${lastReadJson};
+    const listPage = document.getElementById("list-page");
+    const viewerPage = document.getElementById("viewer-page");
     const list = document.getElementById("list");
-    const viewer = document.getElementById("viewer");
     const preview = document.getElementById("preview");
     let currentIndex = -1;
     let pinnedLastRead = lastRead;
     let pinnedLi = null;
+
+    function viewerUrl(filename) {
+      return "/view/" + encodeURIComponent(filename);
+    }
+
+    function parseRoute() {
+      const path = location.pathname;
+      if (path.startsWith("/view/")) {
+        return { page: "viewer", filename: decodeURIComponent(path.slice("/view/".length)) };
+      }
+      return { page: "list" };
+    }
 
     function addListItem(name, index) {
       const li = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = name;
-      button.addEventListener("click", () => openViewer(index));
+      button.addEventListener("click", () => openViewer(name));
       li.appendChild(button);
       list.appendChild(li);
     }
@@ -150,7 +162,7 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       tag.className = "tag";
       tag.textContent = "last read";
       button.append(tag);
-      button.addEventListener("click", () => openViewer(index));
+      button.addEventListener("click", () => openViewer(name));
       pinnedLi.append(button);
     }
 
@@ -170,44 +182,66 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       });
     }
 
-    function openViewer(index) {
-      currentIndex = index;
-      showImage();
-      viewer.classList.add("open");
-      viewer.setAttribute("aria-hidden", "false");
-    }
-
-    function closeViewer() {
-      viewer.classList.remove("open");
-      viewer.setAttribute("aria-hidden", "true");
+    function showListPage() {
+      listPage.hidden = false;
+      viewerPage.hidden = true;
       currentIndex = -1;
     }
 
-    function showImage() {
-      const name = images[currentIndex];
-      preview.src = "/image/" + encodeURIComponent(name);
-      preview.alt = name;
-      updatePinnedRow(name);
-      saveLastRead(name);
+    function showViewerPage(filename, pushHistory) {
+      const index = images.indexOf(filename);
+      if (index === -1) {
+        showListPage();
+        if (location.pathname !== "/") {
+          history.replaceState({ page: "list" }, "", "/");
+        }
+        return;
+      }
+
+      currentIndex = index;
+      listPage.hidden = true;
+      viewerPage.hidden = false;
+      preview.src = "/image/" + encodeURIComponent(filename);
+      preview.alt = filename;
+      updatePinnedRow(filename);
+      saveLastRead(filename);
+
+      if (pushHistory) {
+        history.pushState({ page: "viewer", filename }, "", viewerUrl(filename));
+      }
+    }
+
+    function openViewer(filename) {
+      showViewerPage(filename, true);
     }
 
     function goPrev() {
       if (currentIndex <= 0) return;
-      currentIndex--;
-      showImage();
+      showViewerPage(images[currentIndex - 1], true);
     }
 
     function goNext() {
       if (currentIndex >= images.length - 1) return;
-      currentIndex++;
-      showImage();
+      showViewerPage(images[currentIndex + 1], true);
     }
 
+    function onPopState() {
+      const route = parseRoute();
+      if (route.page === "viewer") {
+        showViewerPage(route.filename, false);
+      } else {
+        showListPage();
+      }
+    }
+
+    window.addEventListener("popstate", onPopState);
+
     document.addEventListener("keydown", (event) => {
-      if (currentIndex === -1) return;
+      if (viewerPage.hidden) return;
 
       if (event.key === "Escape") {
-        closeViewer();
+        showListPage();
+        history.pushState({ page: "list" }, "", "/");
         return;
       }
 
@@ -232,6 +266,13 @@ export function renderPage(images: string[], lastRead: string | null, folderName
         }
       }
     });
+
+    const initialRoute = parseRoute();
+    if (initialRoute.page === "viewer") {
+      showViewerPage(initialRoute.filename, false);
+    } else {
+      showListPage();
+    }
   </script>
 </body>
 </html>`;

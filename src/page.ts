@@ -77,6 +77,26 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       color: #7aa2d6;
     }
 
+    li.selected button {
+      background: #252525;
+      outline: 1px solid #555;
+    }
+
+    li.pinned.selected button {
+      background: #1f2a3d;
+      outline: 1px solid #7aa2d6;
+    }
+
+    li.selected button:hover,
+    li.selected button:focus-visible {
+      background: #2a2a2a;
+    }
+
+    li.pinned.selected button:hover,
+    li.pinned.selected button:focus-visible {
+      background: #243044;
+    }
+
     #viewer-page {
       min-height: 100vh;
       background: #000;
@@ -112,6 +132,7 @@ export function renderPage(images: string[], lastRead: string | null, folderName
     const list = document.getElementById("list");
     const preview = document.getElementById("preview");
     let currentIndex = -1;
+    let listFocusIndex = -1;
     let pinnedLastRead = lastRead;
     let pinnedLi = null;
 
@@ -127,12 +148,88 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       return { page: "list" };
     }
 
+    function getListItems() {
+      return [...list.querySelectorAll("li")];
+    }
+
+    function setListSelection(index) {
+      const items = getListItems();
+      if (index < 0 || index >= items.length) {
+        return;
+      }
+
+      listFocusIndex = index;
+      items.forEach((li, i) => {
+        li.classList.toggle("selected", i === index);
+      });
+      items[index].scrollIntoView({ block: "nearest" });
+    }
+
+    function selectListItemByFilename(filename) {
+      const items = getListItems();
+      const index = items.findIndex((li) => li.dataset.filename === filename);
+      if (index !== -1) {
+        setListSelection(index);
+      } else if (items.length) {
+        setListSelection(0);
+      }
+    }
+
+    function initListSelection(filename) {
+      if (filename) {
+        selectListItemByFilename(filename);
+        return;
+      }
+
+      const items = getListItems();
+      if (items.length) {
+        setListSelection(0);
+      } else {
+        listFocusIndex = -1;
+      }
+    }
+
+    function moveListSelection(delta) {
+      const items = getListItems();
+      if (!items.length) {
+        return;
+      }
+
+      if (listFocusIndex === -1) {
+        setListSelection(delta > 0 ? 0 : items.length - 1);
+        return;
+      }
+
+      const next = listFocusIndex + delta;
+      if (next < 0 || next >= items.length) {
+        return;
+      }
+
+      setListSelection(next);
+    }
+
+    function openSelectedInViewer() {
+      const items = getListItems();
+      if (listFocusIndex < 0 || listFocusIndex >= items.length) {
+        return;
+      }
+
+      const filename = items[listFocusIndex].dataset.filename;
+      if (filename) {
+        openViewer(filename);
+      }
+    }
+
     function addListItem(name, index) {
       const li = document.createElement("li");
+      li.dataset.filename = name;
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = name;
-      button.addEventListener("click", () => openViewer(name));
+      button.addEventListener("click", () => {
+        setListSelection(getListItems().indexOf(li));
+        openViewer(name);
+      });
       li.appendChild(button);
       list.appendChild(li);
     }
@@ -154,6 +251,7 @@ export function renderPage(images: string[], lastRead: string | null, folderName
         list.insertBefore(pinnedLi, list.firstChild);
       }
 
+      pinnedLi.dataset.filename = name;
       pinnedLi.replaceChildren();
       const button = document.createElement("button");
       button.type = "button";
@@ -162,7 +260,10 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       tag.className = "tag";
       tag.textContent = "last read";
       button.append(tag);
-      button.addEventListener("click", () => openViewer(name));
+      button.addEventListener("click", () => {
+        setListSelection(getListItems().indexOf(pinnedLi));
+        openViewer(name);
+      });
       pinnedLi.append(button);
     }
 
@@ -182,10 +283,11 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       });
     }
 
-    function showListPage() {
+    function showListPage(selectFilename) {
       listPage.hidden = false;
       viewerPage.hidden = true;
       currentIndex = -1;
+      initListSelection(selectFilename ?? pinnedLastRead ?? lastRead);
     }
 
     function showViewerPage(filename, pushHistory) {
@@ -230,40 +332,59 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       if (route.page === "viewer") {
         showViewerPage(route.filename, false);
       } else {
-        showListPage();
+        showListPage(pinnedLastRead ?? lastRead);
       }
     }
 
     window.addEventListener("popstate", onPopState);
 
     document.addEventListener("keydown", (event) => {
-      if (viewerPage.hidden) return;
-
-      if (event.key === "Escape") {
-        showListPage();
-        history.pushState({ page: "list" }, "", "/");
-        return;
-      }
-
-      if (event.key === "ArrowUp" || event.key === "ArrowLeft" || event.key === "k") {
-        event.preventDefault();
-        goPrev();
-        return;
-      }
-
-      if (event.key === "ArrowDown" || event.key === "ArrowRight" || event.key === "j") {
-        event.preventDefault();
-        goNext();
-        return;
-      }
-
-      if (event.key === " ") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          goPrev();
-        } else {
-          goNext();
+      if (!viewerPage.hidden) {
+        if (event.key === "Escape") {
+          const filename = currentIndex >= 0 ? images[currentIndex] : null;
+          showListPage(filename);
+          history.pushState({ page: "list" }, "", "/");
+          return;
         }
+
+        if (event.key === "ArrowUp" || event.key === "ArrowLeft" || event.key === "k") {
+          event.preventDefault();
+          goPrev();
+          return;
+        }
+
+        if (event.key === "ArrowDown" || event.key === "ArrowRight" || event.key === "j") {
+          event.preventDefault();
+          goNext();
+          return;
+        }
+
+        if (event.key === " ") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            goPrev();
+          } else {
+            goNext();
+          }
+        }
+        return;
+      }
+
+      if (event.key === "ArrowUp" || event.key === "k") {
+        event.preventDefault();
+        moveListSelection(-1);
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "j") {
+        event.preventDefault();
+        moveListSelection(1);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        openSelectedInViewer();
       }
     });
 

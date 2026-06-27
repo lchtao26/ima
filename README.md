@@ -25,11 +25,21 @@ Press **Ctrl+C** in the terminal to stop the server.
 
 Click a filename to open fullscreen. Last-read file is pinned at the top (saved in `~/.ima/state.json`).
 
+**List**
+
+| Key | Action |
+| --- | --- |
+| `j` `↓` | Move selection down |
+| `k` `↑` | Move selection up |
+| `Enter` | Open selected image |
+
+**Viewer**
+
 | Key | Action |
 | --- | --- |
 | `j` `↓` `→` `Space` | Next |
 | `k` `↑` `←` `Shift+Space` | Previous |
-| `Esc` | Close |
+| `Esc` | Back to list |
 
 ## Development
 

@@ -23,9 +23,12 @@ Press **Ctrl+C** in the terminal to stop the server.
 
 ## Viewer
 
-Click a filename to open fullscreen. Last-read file is pinned at the top (saved in `~/.ima/state.json`).
+- Click a filename to open fullscreen.
+- Last-read file is pinned at the top.
+- Dual mode shows two images side by side (spread); LTR for Western comics, RTL for manga.
+- Preferences (last-read, dual mode, orientation) are saved per folder in `~/.ima/state.json`.
 
-Press **`v`** to toggle dual mode — two images side by side (left/right spread). Press **`>`** for LTR (Western) or **`<`** for RTL (manga) layout. Preferences are saved per folder in `~/.ima/state.json`.
+### Keyboard shortcuts
 
 **List**
 
@@ -35,26 +38,23 @@ Press **`v`** to toggle dual mode — two images side by side (left/right spread
 | `k` `↑` | Move selection up |
 | `Enter` | Open selected image |
 
-**Viewer (single)**
+**Viewer**
 
 | Key | Action |
 | --- | --- |
 | `j` `↓` `→` `Space` | Next |
 | `k` `↑` `←` `Shift+Space` | Previous |
-| `[` `]` | Previous / next (step by 1) |
 | `v` | Toggle dual mode |
 | `Esc` | Back to list |
 
-**Viewer (dual)**
+**Dual mode** (viewer only)
 
 | Key | Action |
 | --- | --- |
 | `j` `↓` `→` `Space` | Next pair (step by 2) |
 | `k` `↑` `←` `Shift+Space` | Previous pair (step by 2) |
 | `[` `]` | Previous / next (step by 1) |
-| `v` | Toggle dual mode |
-| `>` `<` | LTR / RTL spread (dual mode only) |
-| `Esc` | Back to list |
+| `<` `>` | RTL / LTR spread |
 
 ## Development
 

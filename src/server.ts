@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import net from "node:net";
 import { resolveImagePath } from "./scan.js";
 import { renderPage } from "./page.js";
-import { setDualMode, setLastRead } from "./state.js";
+import { setDualMode, setDualOrientation, setLastRead, type DualOrientation } from "./state.js";
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -46,9 +46,10 @@ export function startServer(
   port: number,
   lastRead: string | null,
   dualMode: boolean,
+  dualOrientation: DualOrientation,
 ): ReturnType<typeof createServer> {
   const server = createServer((req, res) => {
-    handleRequest(req, res, dirPath, images, lastRead, dualMode).catch(() => {
+    handleRequest(req, res, dirPath, images, lastRead, dualMode, dualOrientation).catch(() => {
       if (!res.headersSent) {
         res.writeHead(500);
         res.end("Internal Server Error");
@@ -67,12 +68,13 @@ async function handleRequest(
   images: string[],
   lastRead: string | null,
   dualMode: boolean,
+  dualOrientation: DualOrientation,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
   if (url.pathname === "/" || url.pathname.startsWith("/view/")) {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderPage(images, lastRead, dualMode, basename(dirPath)));
+    res.end(renderPage(images, lastRead, dualMode, dualOrientation, basename(dirPath)));
     return;
   }
 
@@ -119,6 +121,30 @@ async function handleRequest(
     }
 
     setDualMode(dirPath, dualModeValue);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (url.pathname === "/api/dual-orientation" && req.method === "POST") {
+    const body = await readBody(req);
+    let orientation: DualOrientation;
+
+    try {
+      orientation = (JSON.parse(body) as { orientation: DualOrientation }).orientation;
+    } catch {
+      res.writeHead(400);
+      res.end("Bad Request");
+      return;
+    }
+
+    if (orientation !== "ltr" && orientation !== "rtl") {
+      res.writeHead(400);
+      res.end("Bad Request");
+      return;
+    }
+
+    setDualOrientation(dirPath, orientation);
     res.writeHead(204);
     res.end();
     return;

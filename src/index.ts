@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import open from "open";
 import { findFreePort, startServer } from "./server.js";
 import { scanImages } from "./scan.js";
-import { getDualMode, resolveLastRead } from "./state.js";
+import { getDualMode, getDualOrientation, resolveLastRead } from "./state.js";
 
 async function main(): Promise<void> {
   const targetPath = resolve(process.argv[2] ?? ".");
@@ -32,9 +32,10 @@ async function main(): Promise<void> {
 
   const lastRead = resolveLastRead(targetPath, images);
   const dualMode = getDualMode(targetPath);
+  const dualOrientation = getDualOrientation(targetPath);
 
   const port = await findFreePort();
-  startServer(targetPath, images, port, lastRead, dualMode);
+  startServer(targetPath, images, port, lastRead, dualMode, dualOrientation);
 
   const url = `http://127.0.0.1:${port}`;
   console.log(`Serving ${images.length} image${images.length === 1 ? "" : "s"} at ${url}`);

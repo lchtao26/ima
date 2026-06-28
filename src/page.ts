@@ -2,11 +2,13 @@ export function renderPage(
   images: string[],
   lastRead: string | null,
   dualMode: boolean,
+  dualOrientation: "ltr" | "rtl",
   folderName: string,
 ): string {
   const imageJson = JSON.stringify(images);
   const lastReadJson = JSON.stringify(lastRead);
   const dualModeJson = JSON.stringify(dualMode);
+  const dualOrientationJson = JSON.stringify(dualOrientation);
   const title = `ima — ${escapeHtml(folderName)}`;
 
   return `<!DOCTYPE html>
@@ -172,6 +174,7 @@ export function renderPage(
     let pinnedLastRead = lastRead;
     let pinnedLi = null;
     let dualMode = ${dualModeJson};
+    let dualOrientation = ${dualOrientationJson};
 
     function viewerUrl(filename) {
       return "/view/" + encodeURIComponent(filename);
@@ -328,26 +331,53 @@ export function renderPage(
       });
     }
 
+    function saveDualOrientation(orientation) {
+      fetch("/api/dual-orientation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orientation }),
+      });
+    }
+
+    function setPaneImage(imgEl, index) {
+      if (index >= 0 && index < images.length) {
+        imgEl.hidden = false;
+        imgEl.src = "/image/" + encodeURIComponent(images[index]);
+        imgEl.alt = images[index];
+      } else {
+        imgEl.hidden = true;
+        imgEl.removeAttribute("src");
+        imgEl.alt = "";
+      }
+    }
+
     function applyViewerLayout() {
       viewerPage.classList.toggle("dual", dualMode);
 
       if (!dualMode) {
+        setPaneImage(preview, currentIndex);
         previewRight.hidden = true;
         previewRight.removeAttribute("src");
         previewRight.alt = "";
         return;
       }
 
-      const rightIndex = currentIndex + 1;
-      if (rightIndex < images.length) {
-        previewRight.hidden = false;
-        previewRight.src = "/image/" + encodeURIComponent(images[rightIndex]);
-        previewRight.alt = images[rightIndex];
+      const leading = currentIndex;
+      const trailing = currentIndex + 1;
+
+      if (dualOrientation === "ltr") {
+        setPaneImage(preview, leading);
+        setPaneImage(previewRight, trailing);
       } else {
-        previewRight.hidden = true;
-        previewRight.removeAttribute("src");
-        previewRight.alt = "";
+        setPaneImage(previewRight, leading);
+        setPaneImage(preview, trailing);
       }
+    }
+
+    function setDualOrientation(orientation) {
+      dualOrientation = orientation;
+      saveDualOrientation(orientation);
+      applyViewerLayout();
     }
 
     function toggleDualMode() {
@@ -376,8 +406,6 @@ export function renderPage(
       currentIndex = index;
       listPage.hidden = true;
       viewerPage.hidden = false;
-      preview.src = "/image/" + encodeURIComponent(filename);
-      preview.alt = filename;
       applyViewerLayout();
       updatePinnedRow(filename);
       saveLastRead(filename);
@@ -427,6 +455,18 @@ export function renderPage(
         if (event.key === "v") {
           event.preventDefault();
           toggleDualMode();
+          return;
+        }
+
+        if (dualMode && event.key === ">") {
+          event.preventDefault();
+          setDualOrientation("ltr");
+          return;
+        }
+
+        if (dualMode && event.key === "<") {
+          event.preventDefault();
+          setDualOrientation("rtl");
           return;
         }
 

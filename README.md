@@ -25,7 +25,7 @@ Press **Ctrl+C** in the terminal to stop the server.
 
 Click a filename to open fullscreen. Last-read file is pinned at the top (saved in `~/.ima/state.json`).
 
-Press **`v`** to toggle dual mode — two images side by side (left/right spread). The preference is saved per folder in `~/.ima/state.json`.
+Press **`v`** to toggle dual mode — two images side by side (left/right spread). Press **`>`** for LTR (Western) or **`<`** for RTL (manga) layout. Preferences are saved per folder in `~/.ima/state.json`.
 
 **List**
 
@@ -53,6 +53,7 @@ Press **`v`** to toggle dual mode — two images side by side (left/right spread
 | `k` `↑` `←` `Shift+Space` | Previous pair (step by 2) |
 | `[` `]` | Previous / next (step by 1) |
 | `v` | Toggle dual mode |
+| `>` `<` | LTR / RTL spread (dual mode only) |
 | `Esc` | Back to list |
 
 ## Development

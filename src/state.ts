@@ -5,9 +5,12 @@ import { join } from "node:path";
 const STATE_DIR = join(homedir(), ".ima");
 const STATE_FILE = join(STATE_DIR, "state.json");
 
+export type DualOrientation = "ltr" | "rtl";
+
 type FolderState = {
   lastRead?: string;
   dualMode?: boolean;
+  dualOrientation?: DualOrientation;
 };
 
 type RawState = Record<string, string | FolderState>;
@@ -40,8 +43,9 @@ function writeFolderEntry(dirPath: string, entry: FolderState): void {
   const state = readRawState();
   const hasLastRead = entry.lastRead !== undefined;
   const hasDualMode = entry.dualMode === true;
+  const hasRtl = entry.dualOrientation === "rtl";
 
-  if (!hasLastRead && !hasDualMode) {
+  if (!hasLastRead && !hasDualMode && !hasRtl) {
     delete state[dirPath];
   } else {
     const next: FolderState = {};
@@ -50,6 +54,9 @@ function writeFolderEntry(dirPath: string, entry: FolderState): void {
     }
     if (hasDualMode) {
       next.dualMode = true;
+    }
+    if (hasRtl) {
+      next.dualOrientation = "rtl";
     }
     state[dirPath] = next;
   }
@@ -70,6 +77,10 @@ export function getDualMode(dirPath: string): boolean {
   return getFolderEntry(dirPath).dualMode ?? false;
 }
 
+export function getDualOrientation(dirPath: string): DualOrientation {
+  return getFolderEntry(dirPath).dualOrientation === "rtl" ? "rtl" : "ltr";
+}
+
 export function setLastRead(dirPath: string, filename: string): void {
   const entry = getFolderEntry(dirPath);
   entry.lastRead = filename;
@@ -79,6 +90,16 @@ export function setLastRead(dirPath: string, filename: string): void {
 export function setDualMode(dirPath: string, dualMode: boolean): void {
   const entry = getFolderEntry(dirPath);
   entry.dualMode = dualMode;
+  writeFolderEntry(dirPath, entry);
+}
+
+export function setDualOrientation(dirPath: string, orientation: DualOrientation): void {
+  const entry = getFolderEntry(dirPath);
+  if (orientation === "ltr") {
+    delete entry.dualOrientation;
+  } else {
+    entry.dualOrientation = "rtl";
+  }
   writeFolderEntry(dirPath, entry);
 }
 

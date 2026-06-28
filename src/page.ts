@@ -1,6 +1,12 @@
-export function renderPage(images: string[], lastRead: string | null, folderName: string): string {
+export function renderPage(
+  images: string[],
+  lastRead: string | null,
+  dualMode: boolean,
+  folderName: string,
+): string {
   const imageJson = JSON.stringify(images);
   const lastReadJson = JSON.stringify(lastRead);
+  const dualModeJson = JSON.stringify(dualMode);
   const title = `ima — ${escapeHtml(folderName)}`;
 
   return `<!DOCTYPE html>
@@ -105,8 +111,32 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       justify-content: center;
     }
 
+    #viewer-page.dual {
+      align-items: stretch;
+    }
+
+    .viewer-pane {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-width: 0;
+    }
+
+    #viewer-page.dual .viewer-pane {
+      flex: 1;
+    }
+
+    #viewer-page:not(.dual) .viewer-pane-right {
+      display: none;
+    }
+
+    #viewer-page:not(.dual) .viewer-pane-left {
+      width: 100%;
+    }
+
     #viewer-page img {
-      max-width: 100vw;
+      max-width: 100%;
       max-height: 100vh;
       object-fit: contain;
     }
@@ -121,7 +151,12 @@ export function renderPage(images: string[], lastRead: string | null, folderName
   </div>
 
   <div id="viewer-page" hidden>
-    <img id="preview" alt="">
+    <div class="viewer-pane viewer-pane-left">
+      <img id="preview" alt="">
+    </div>
+    <div class="viewer-pane viewer-pane-right">
+      <img id="preview-right" alt="" hidden>
+    </div>
   </div>
 
   <script>
@@ -131,10 +166,12 @@ export function renderPage(images: string[], lastRead: string | null, folderName
     const viewerPage = document.getElementById("viewer-page");
     const list = document.getElementById("list");
     const preview = document.getElementById("preview");
+    const previewRight = document.getElementById("preview-right");
     let currentIndex = -1;
     let listFocusIndex = -1;
     let pinnedLastRead = lastRead;
     let pinnedLi = null;
+    let dualMode = ${dualModeJson};
 
     function viewerUrl(filename) {
       return "/view/" + encodeURIComponent(filename);
@@ -283,6 +320,42 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       });
     }
 
+    function saveDualMode(enabled) {
+      fetch("/api/dual-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dualMode: enabled }),
+      });
+    }
+
+    function applyViewerLayout() {
+      viewerPage.classList.toggle("dual", dualMode);
+
+      if (!dualMode) {
+        previewRight.hidden = true;
+        previewRight.removeAttribute("src");
+        previewRight.alt = "";
+        return;
+      }
+
+      const rightIndex = currentIndex + 1;
+      if (rightIndex < images.length) {
+        previewRight.hidden = false;
+        previewRight.src = "/image/" + encodeURIComponent(images[rightIndex]);
+        previewRight.alt = images[rightIndex];
+      } else {
+        previewRight.hidden = true;
+        previewRight.removeAttribute("src");
+        previewRight.alt = "";
+      }
+    }
+
+    function toggleDualMode() {
+      dualMode = !dualMode;
+      saveDualMode(dualMode);
+      applyViewerLayout();
+    }
+
     function showListPage(selectFilename) {
       listPage.hidden = false;
       viewerPage.hidden = true;
@@ -305,6 +378,7 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       viewerPage.hidden = false;
       preview.src = "/image/" + encodeURIComponent(filename);
       preview.alt = filename;
+      applyViewerLayout();
       updatePinnedRow(filename);
       saveLastRead(filename);
 
@@ -317,14 +391,17 @@ export function renderPage(images: string[], lastRead: string | null, folderName
       showViewerPage(filename, true);
     }
 
-    function goPrev() {
-      if (currentIndex <= 0) return;
-      showViewerPage(images[currentIndex - 1], true);
+    function goStep(delta) {
+      const next = currentIndex + delta;
+      if (next < 0 || next >= images.length) {
+        return;
+      }
+      showViewerPage(images[next], true);
     }
 
-    function goNext() {
-      if (currentIndex >= images.length - 1) return;
-      showViewerPage(images[currentIndex + 1], true);
+    function goSpread(delta) {
+      const step = dualMode ? 2 : 1;
+      goStep(delta * step);
     }
 
     function onPopState() {
@@ -347,24 +424,42 @@ export function renderPage(images: string[], lastRead: string | null, folderName
           return;
         }
 
+        if (event.key === "v") {
+          event.preventDefault();
+          toggleDualMode();
+          return;
+        }
+
+        if (event.key === "[") {
+          event.preventDefault();
+          goStep(-1);
+          return;
+        }
+
+        if (event.key === "]") {
+          event.preventDefault();
+          goStep(1);
+          return;
+        }
+
         if (event.key === "ArrowUp" || event.key === "ArrowLeft" || event.key === "k") {
           event.preventDefault();
-          goPrev();
+          goSpread(-1);
           return;
         }
 
         if (event.key === "ArrowDown" || event.key === "ArrowRight" || event.key === "j") {
           event.preventDefault();
-          goNext();
+          goSpread(1);
           return;
         }
 
         if (event.key === " ") {
           event.preventDefault();
           if (event.shiftKey) {
-            goPrev();
+            goSpread(-1);
           } else {
-            goNext();
+            goSpread(1);
           }
         }
         return;

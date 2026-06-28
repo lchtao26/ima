@@ -5,43 +5,91 @@ import { join } from "node:path";
 const STATE_DIR = join(homedir(), ".ima");
 const STATE_FILE = join(STATE_DIR, "state.json");
 
-type State = Record<string, string>;
+type FolderState = {
+  lastRead?: string;
+  dualMode?: boolean;
+};
 
-function readState(): State {
+type RawState = Record<string, string | FolderState>;
+
+function readRawState(): RawState {
   if (!existsSync(STATE_FILE)) {
     return {};
   }
 
   try {
-    return JSON.parse(readFileSync(STATE_FILE, "utf8")) as State;
+    return JSON.parse(readFileSync(STATE_FILE, "utf8")) as RawState;
   } catch {
     return {};
   }
 }
 
-function writeState(state: State): void {
+function normalizeFolderEntry(raw: string | FolderState | undefined): FolderState {
+  if (typeof raw === "string") {
+    return { lastRead: raw };
+  }
+
+  if (!raw) {
+    return {};
+  }
+
+  return { ...raw };
+}
+
+function writeFolderEntry(dirPath: string, entry: FolderState): void {
+  const state = readRawState();
+  const hasLastRead = entry.lastRead !== undefined;
+  const hasDualMode = entry.dualMode === true;
+
+  if (!hasLastRead && !hasDualMode) {
+    delete state[dirPath];
+  } else {
+    const next: FolderState = {};
+    if (hasLastRead) {
+      next.lastRead = entry.lastRead;
+    }
+    if (hasDualMode) {
+      next.dualMode = true;
+    }
+    state[dirPath] = next;
+  }
+
   mkdirSync(STATE_DIR, { recursive: true });
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+function getFolderEntry(dirPath: string): FolderState {
+  return normalizeFolderEntry(readRawState()[dirPath]);
+}
+
 export function getLastRead(dirPath: string): string | null {
-  return readState()[dirPath] ?? null;
+  return getFolderEntry(dirPath).lastRead ?? null;
+}
+
+export function getDualMode(dirPath: string): boolean {
+  return getFolderEntry(dirPath).dualMode ?? false;
 }
 
 export function setLastRead(dirPath: string, filename: string): void {
-  const state = readState();
-  state[dirPath] = filename;
-  writeState(state);
+  const entry = getFolderEntry(dirPath);
+  entry.lastRead = filename;
+  writeFolderEntry(dirPath, entry);
 }
 
-export function clearLastRead(dirPath: string): void {
-  const state = readState();
-  if (!(dirPath in state)) {
+export function setDualMode(dirPath: string, dualMode: boolean): void {
+  const entry = getFolderEntry(dirPath);
+  entry.dualMode = dualMode;
+  writeFolderEntry(dirPath, entry);
+}
+
+function clearLastReadOnly(dirPath: string): void {
+  const entry = getFolderEntry(dirPath);
+  if (!entry.lastRead) {
     return;
   }
 
-  delete state[dirPath];
-  writeState(state);
+  delete entry.lastRead;
+  writeFolderEntry(dirPath, entry);
 }
 
 export function resolveLastRead(dirPath: string, images: string[]): string | null {
@@ -51,7 +99,7 @@ export function resolveLastRead(dirPath: string, images: string[]): string | nul
   }
 
   if (!images.includes(lastRead)) {
-    clearLastRead(dirPath);
+    clearLastReadOnly(dirPath);
     return null;
   }
 

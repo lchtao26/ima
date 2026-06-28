@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import net from "node:net";
 import { resolveImagePath } from "./scan.js";
 import { renderPage } from "./page.js";
-import { setLastRead } from "./state.js";
+import { setDualMode, setLastRead } from "./state.js";
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -45,9 +45,10 @@ export function startServer(
   images: string[],
   port: number,
   lastRead: string | null,
+  dualMode: boolean,
 ): ReturnType<typeof createServer> {
   const server = createServer((req, res) => {
-    handleRequest(req, res, dirPath, images, lastRead).catch(() => {
+    handleRequest(req, res, dirPath, images, lastRead, dualMode).catch(() => {
       if (!res.headersSent) {
         res.writeHead(500);
         res.end("Internal Server Error");
@@ -65,12 +66,13 @@ async function handleRequest(
   dirPath: string,
   images: string[],
   lastRead: string | null,
+  dualMode: boolean,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
   if (url.pathname === "/" || url.pathname.startsWith("/view/")) {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderPage(images, lastRead, basename(dirPath)));
+    res.end(renderPage(images, lastRead, dualMode, basename(dirPath)));
     return;
   }
 
@@ -93,6 +95,30 @@ async function handleRequest(
     }
 
     setLastRead(dirPath, filename);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (url.pathname === "/api/dual-mode" && req.method === "POST") {
+    const body = await readBody(req);
+    let dualModeValue: boolean;
+
+    try {
+      dualModeValue = (JSON.parse(body) as { dualMode: boolean }).dualMode;
+    } catch {
+      res.writeHead(400);
+      res.end("Bad Request");
+      return;
+    }
+
+    if (typeof dualModeValue !== "boolean") {
+      res.writeHead(400);
+      res.end("Bad Request");
+      return;
+    }
+
+    setDualMode(dirPath, dualModeValue);
     res.writeHead(204);
     res.end();
     return;
